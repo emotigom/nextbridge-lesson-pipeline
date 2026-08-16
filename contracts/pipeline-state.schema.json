@@ -17,7 +17,7 @@
       "properties": {
         "repository": {"const": "emotigom/nextbridge-lesson-factory"},
         "commitSha": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
-        "verificationMode": {"enum": ["PUBLIC_BUNDLE","PRIVATE_PROOF"]},
+        "verificationMode": {"enum": ["HANDOFF_LINEAGE","PUBLIC_BUNDLE","PRIVATE_PROOF"]},
         "designRefPath": {"type": "string", "minLength": 1}
       }
     },
