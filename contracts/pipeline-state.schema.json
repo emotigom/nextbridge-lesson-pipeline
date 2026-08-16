@@ -13,11 +13,25 @@
     "factory": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["repository","commitSha","designBundlePath"],
+      "required": ["repository","commitSha","verificationMode","designRefPath"],
       "properties": {
         "repository": {"const": "emotigom/nextbridge-lesson-factory"},
         "commitSha": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
-        "designBundlePath": {"type": "string", "minLength": 1}
+        "verificationMode": {"enum": ["PUBLIC_BUNDLE","PRIVATE_PROOF"]},
+        "designRefPath": {"type": "string", "minLength": 1}
+      }
+    },
+    "candidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["designVersion","qualityOverall","packageSha256","presentationSha256","practiceToolSha256","activityPackSha256"],
+      "properties": {
+        "designVersion": {"type": "string", "minLength": 1},
+        "qualityOverall": {"type": "number", "minimum": 0, "maximum": 100},
+        "packageSha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "presentationSha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "practiceToolSha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "activityPackSha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
       }
     },
     "approvals": {
