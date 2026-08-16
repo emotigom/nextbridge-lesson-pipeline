@@ -33,14 +33,22 @@ jobs:
           python3 tools/pipelinectl.py validate --state fixtures/pipeline/pass/state.json
           python3 tools/pipelinectl.py check --state fixtures/pipeline/pass/state.json --to ALL_CONTENT_APPROVED
 
-      - name: Resolve pinned Factory SHA
+      - name: Validate migrated feed-why state and WIP
+        working-directory: pipeline
+        run: |
+          python3 tools/pipelinectl.py validate --state courses/feed-why/state.json
+          python3 tools/pipelinectl.py status --state courses/feed-why/state.json
+          python3 tools/pipelinectl.py check --state courses/feed-why/state.json --to PRACTICE_TOOL_BUILD_ALLOWED
+          python3 tools/pipelinectl.py wip-check --root courses
+
+      - name: Resolve pinned Factory SHA from feed-why
         id: factory
         working-directory: pipeline
         shell: bash
         run: |
           python3 - <<'PY' >> "$GITHUB_OUTPUT"
           import json
-          s=json.load(open('fixtures/pipeline/pass/state.json',encoding='utf-8'))
+          s=json.load(open('courses/feed-why/state.json',encoding='utf-8'))
           assert s['factory']['repository']=='emotigom/nextbridge-lesson-factory'
           print('sha='+s['factory']['commitSha'])
           PY
@@ -52,6 +60,10 @@ jobs:
           ref: ${{ steps.factory.outputs.sha }}
           path: factory
 
-      - name: Verify Factory content-design result at pinned SHA
+      - name: Verify synthetic public bundle at pinned SHA
         working-directory: pipeline
         run: python3 tools/pipelinectl.py factory-check --state fixtures/pipeline/pass/state.json --factory-root ../factory
+
+      - name: Verify feed-why private proof and candidate hashes
+        working-directory: pipeline
+        run: python3 tools/pipelinectl.py factory-check --state courses/feed-why/state.json --factory-root ../factory
