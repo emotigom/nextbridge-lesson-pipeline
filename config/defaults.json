@@ -1,0 +1,6 @@
+{
+  "schemaVersion": "1.0.0",
+  "factoryRepository": "emotigom/nextbridge-lesson-factory",
+  "factoryCommitSha": "5402f691d2c9d127b05d2063682be266645ee273",
+  "initialVerificationMode": "HANDOFF_LINEAGE"
+}
