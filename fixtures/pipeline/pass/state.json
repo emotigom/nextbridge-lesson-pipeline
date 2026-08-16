@@ -1,0 +1,21 @@
+{
+  "schemaVersion": "1.0.0",
+  "courseId": "fixture-course",
+  "activeWip": true,
+  "sessionCount": 1,
+  "factory": {
+    "repository": "emotigom/nextbridge-lesson-factory",
+    "commitSha": "9afd4ca4bd18aae84e99a4e93ef069f6c3b34e52",
+    "designBundlePath": "fixtures/design/clean-room-pass"
+  },
+  "approvals": {
+    "cleanIntake": {"status":"APPROVED","reviewer":"fixture-reviewer","approvedAt":"2026-08-16T00:00:00Z"},
+    "courseMap": {"status":"APPROVED","reviewer":"fixture-reviewer","approvedAt":"2026-08-16T00:01:00Z"},
+    "sessions": [
+      {"session":1,"status":"APPROVED","reviewer":"fixture-reviewer","approvedAt":"2026-08-16T00:02:00Z"}
+    ],
+    "allContent": {"status":"APPROVED","reviewer":"fixture-reviewer","approvedAt":"2026-08-16T00:03:00Z"},
+    "pptxBuild": {"status":"PENDING","reviewer":null,"approvedAt":null},
+    "practiceToolBuild": {"status":"PENDING","reviewer":null,"approvedAt":null}
+  }
+}
