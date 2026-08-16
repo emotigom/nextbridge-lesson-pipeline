@@ -1,0 +1,57 @@
+name: Pipeline QA
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pipeline-qa-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  approval-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout pipeline
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: pipeline
+
+      - name: Unit tests
+        working-directory: pipeline
+        run: python3 -m unittest discover -s tests -v
+
+      - name: Validate synthetic pipeline state
+        working-directory: pipeline
+        run: |
+          python3 tools/pipelinectl.py validate --state fixtures/pipeline/pass/state.json
+          python3 tools/pipelinectl.py check --state fixtures/pipeline/pass/state.json --to ALL_CONTENT_APPROVED
+
+      - name: Resolve pinned Factory binding
+        id: factory
+        working-directory: pipeline
+        shell: bash
+        run: |
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import json
+          s=json.load(open('fixtures/pipeline/pass/state.json',encoding='utf-8'))
+          print('repository='+s['factory']['repository'])
+          print('sha='+s['factory']['commitSha'])
+          PY
+
+      - name: Checkout exact Factory commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ steps.factory.outputs.repository }}
+          ref: ${{ steps.factory.outputs.sha }}
+          path: factory
+
+      - name: Verify Factory content-design result at pinned SHA
+        working-directory: pipeline
+        run: python3 tools/pipelinectl.py factory-check --state fixtures/pipeline/pass/state.json --factory-root ../factory
