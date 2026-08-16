@@ -6,13 +6,14 @@
 courses/<courseId>/state.json
 ```
 
-이 디렉터리에는 승인 상태와 Factory 포인터만 둡니다.
+이 디렉터리에는 승인 상태, Factory의 정확한 commit SHA, 공개 가능한 candidate 해시만 둡니다.
 
 넣지 않는 것:
 
 - PPTX / PDF / HTML / ZIP
+- 상세 storyboard 원문
 - 학교 원본 자료
 - 학생·교사 개인정보
 - 비공개 수동 Gate 증거
 
-현재 PR은 Pipeline 엔진 bootstrap만 수행하므로 실제 `feed-why/state.json`은 아직 만들지 않습니다. 해당 migration은 다음 통합 PR에서 수행합니다.
+현재 첫 실제 상태는 `courses/feed-why/state.json`입니다. 이 상태는 clean-room 설계와 PPTX/실습도구 제작 승인까지 완료된 사실을 기록하지만, Factory의 runtime release `FIELD_READY/CANONICAL` 승인을 대신하지 않습니다.

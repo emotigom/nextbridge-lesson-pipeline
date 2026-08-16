@@ -5,8 +5,9 @@
   "sessionCount": 1,
   "factory": {
     "repository": "emotigom/nextbridge-lesson-factory",
-    "commitSha": "9afd4ca4bd18aae84e99a4e93ef069f6c3b34e52",
-    "designBundlePath": "fixtures/design/clean-room-pass"
+    "commitSha": "79fa84068011035f7546a0f46090715eb278a6d4",
+    "verificationMode": "PUBLIC_BUNDLE",
+    "designRefPath": "fixtures/design/clean-room-pass"
   },
   "approvals": {
     "cleanIntake": {"status":"APPROVED","reviewer":"fixture-reviewer","approvedAt":"2026-08-16T00:00:00Z"},

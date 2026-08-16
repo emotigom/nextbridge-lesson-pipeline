@@ -1,0 +1,33 @@
+{
+  "schemaVersion": "1.0.0",
+  "courseId": "feed-why",
+  "activeWip": true,
+  "sessionCount": 4,
+  "factory": {
+    "repository": "emotigom/nextbridge-lesson-factory",
+    "commitSha": "79fa84068011035f7546a0f46090715eb278a6d4",
+    "verificationMode": "PRIVATE_PROOF",
+    "designRefPath": "courses/feed-why/design/cleanroom-v1/design-proof.json"
+  },
+  "candidate": {
+    "designVersion": "cleanroom-v1",
+    "qualityOverall": 97,
+    "packageSha256": "c69b918ba086f7c9d9190d4a6ad16dc505223dac3062925e257876dd8cb35a82",
+    "presentationSha256": "adbdde37ff69eb01284f118c975a709e9cd27a6f8c9f3ff8660a895c504ebcae",
+    "practiceToolSha256": "a54f5352b8f33618f50a5672a1f0d8540b34423db9c48bcdc65c02627dbd074c",
+    "activityPackSha256": "516d47e42ed3f1deffae84c52c8738f111dad132505a68a6707809f61573cb54"
+  },
+  "approvals": {
+    "cleanIntake": {"status":"APPROVED","reviewer":"emotigom","approvedAt":"2026-08-16T21:40:00+09:00"},
+    "courseMap": {"status":"APPROVED","reviewer":"emotigom","approvedAt":"2026-08-16T21:40:00+09:00"},
+    "sessions": [
+      {"session":1,"status":"APPROVED","reviewer":"emotigom","approvedAt":"2026-08-16T21:40:00+09:00"},
+      {"session":2,"status":"APPROVED","reviewer":"emotigom","approvedAt":"2026-08-16T21:40:00+09:00"},
+      {"session":3,"status":"APPROVED","reviewer":"emotigom","approvedAt":"2026-08-16T21:40:00+09:00"},
+      {"session":4,"status":"APPROVED","reviewer":"emotigom","approvedAt":"2026-08-16T21:40:00+09:00"}
+    ],
+    "allContent": {"status":"APPROVED","reviewer":"emotigom","approvedAt":"2026-08-16T21:40:00+09:00"},
+    "pptxBuild": {"status":"APPROVED","reviewer":"emotigom","approvedAt":"2026-08-16T21:40:00+09:00"},
+    "practiceToolBuild": {"status":"APPROVED","reviewer":"emotigom","approvedAt":"2026-08-16T21:40:00+09:00"}
+  }
+}

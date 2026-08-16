@@ -11,6 +11,7 @@ p = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(p)
 
 FIXTURE = json.loads((ROOT / 'fixtures' / 'pipeline' / 'pass' / 'state.json').read_text(encoding='utf-8'))
+FEED_WHY = json.loads((ROOT / 'courses' / 'feed-why' / 'state.json').read_text(encoding='utf-8'))
 
 
 def approval(status='PENDING', reviewer=None, approved_at=None):
@@ -39,6 +40,13 @@ class TestPipelineCtl(unittest.TestCase):
         self.assertEqual('ALL_CONTENT_APPROVED', p.derived_milestone(FIXTURE))
         self.assertEqual([], p.gate_blockers(FIXTURE, 'ALL_CONTENT_APPROVED'))
         self.assertEqual(['PPTX_BUILD_NOT_ALLOWED'], p.gate_blockers(FIXTURE, 'PPTX_BUILD_ALLOWED'))
+
+    def test_feed_why_is_registered_at_completed_design_build_milestone(self):
+        self.assertEqual([], p.validate_state(FEED_WHY))
+        self.assertEqual('PRACTICE_TOOL_BUILD_ALLOWED', p.derived_milestone(FEED_WHY))
+        self.assertEqual([], p.gate_blockers(FEED_WHY, 'PRACTICE_TOOL_BUILD_ALLOWED'))
+        self.assertEqual('PRIVATE_PROOF', FEED_WHY['factory']['verificationMode'])
+        self.assertEqual(97, FEED_WHY['candidate']['qualityOverall'])
 
     def test_four_session_approvals_advance_one_by_one(self):
         state = four_session_state()
@@ -90,6 +98,19 @@ class TestPipelineCtl(unittest.TestCase):
         state = copy.deepcopy(FIXTURE)
         state['factory']['repository'] = 'example/attacker-controlled-repo'
         self.assertIn('FACTORY_REPOSITORY_NOT_ALLOWED', p.validate_state(state))
+
+    def test_factory_verification_mode_and_path_are_guarded(self):
+        state = copy.deepcopy(FIXTURE)
+        state['factory']['verificationMode'] = 'REMOTE_SCRIPT'
+        state['factory']['designRefPath'] = '../escape'
+        blockers = p.validate_state(state)
+        self.assertIn('FACTORY_VERIFICATION_MODE_INVALID', blockers)
+        self.assertIn('FACTORY_DESIGN_REF_PATH_UNSAFE', blockers)
+
+    def test_candidate_hash_format_is_guarded(self):
+        state = copy.deepcopy(FEED_WHY)
+        state['candidate']['presentationSha256'] = 'bad'
+        self.assertIn('CANDIDATE_SHA_INVALID:presentationSha256', p.validate_state(state))
 
     def test_approved_record_requires_human_metadata(self):
         state = copy.deepcopy(FIXTURE)
