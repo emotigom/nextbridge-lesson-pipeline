@@ -3,13 +3,17 @@ from __future__ import annotations
 
 import argparse
 import json
-import shutil
+import sys
 from pathlib import Path
+
+TOOLS = Path(__file__).resolve().parent
+if str(TOOLS) not in sys.path:
+    sys.path.insert(0, str(TOOLS))
 
 from handoff_lineage import derive_lineage, validate_lineage
 from pipelinectl import validate_state, derived_milestone
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = TOOLS.parents[0]
 DEFAULTS = ROOT / 'config' / 'defaults.json'
 
 
