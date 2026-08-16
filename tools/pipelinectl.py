@@ -11,8 +11,10 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 FACTORY_REPOSITORY = 'emotigom/nextbridge-lesson-factory'
 SHA40 = re.compile(r'^[0-9a-f]{40}$')
+SHA64 = re.compile(r'^[0-9a-f]{64}$')
 SESSION_TARGET = re.compile(r'^SESSION_(\d+)_APPROVED$')
 APPROVAL_KEYS = ('cleanIntake','courseMap','allContent','pptxBuild','practiceToolBuild')
+FACTORY_MODES = {'PUBLIC_BUNDLE','PRIVATE_PROOF'}
 
 
 class PipelineError(RuntimeError):
@@ -66,9 +68,24 @@ def validate_state(state):
         blockers.append('FACTORY_REPOSITORY_NOT_ALLOWED')
     if not SHA40.match(str(factory.get('commitSha',''))):
         blockers.append('FACTORY_COMMIT_NOT_PINNED_SHA')
-    bundle = str(factory.get('designBundlePath',''))
-    if not bundle or Path(bundle).is_absolute() or '..' in Path(bundle).parts:
-        blockers.append('FACTORY_BUNDLE_PATH_UNSAFE')
+    if factory.get('verificationMode') not in FACTORY_MODES:
+        blockers.append('FACTORY_VERIFICATION_MODE_INVALID')
+    design_ref = str(factory.get('designRefPath',''))
+    if not design_ref or Path(design_ref).is_absolute() or '..' in Path(design_ref).parts:
+        blockers.append('FACTORY_DESIGN_REF_PATH_UNSAFE')
+
+    candidate = state.get('candidate')
+    if candidate is not None:
+        if not isinstance(candidate, dict):
+            blockers.append('CANDIDATE_INVALID')
+        else:
+            if not candidate.get('designVersion'):
+                blockers.append('CANDIDATE_DESIGN_VERSION_MISSING')
+            if not isinstance(candidate.get('qualityOverall'), (int,float)) or isinstance(candidate.get('qualityOverall'), bool):
+                blockers.append('CANDIDATE_QUALITY_INVALID')
+            for key in ('packageSha256','presentationSha256','practiceToolSha256','activityPackSha256'):
+                if not SHA64.match(str(candidate.get(key,''))):
+                    blockers.append('CANDIDATE_SHA_INVALID:'+key)
 
     approvals = state.get('approvals', {})
     for key in APPROVAL_KEYS:
@@ -182,6 +199,28 @@ def wip_check(states_root: Path):
     return {'status':'PASS' if not blockers else 'FAIL','active':active,'files':len(files),'blockers':blockers,'parseErrors':parse_errors}
 
 
+def _candidate_proof_blockers(state, proof):
+    candidate = state.get('candidate')
+    if not candidate:
+        return []
+    blockers=[]
+    if candidate.get('designVersion') != proof.get('designVersion'):
+        blockers.append('CANDIDATE_DESIGN_VERSION_MISMATCH')
+    if candidate.get('qualityOverall') != proof.get('quality',{}).get('overall'):
+        blockers.append('CANDIDATE_QUALITY_MISMATCH')
+    artifacts={x.get('role'):x.get('sha256') for x in proof.get('artifacts',[]) if isinstance(x,dict)}
+    pairs={
+        'packageSha256':'final-package',
+        'presentationSha256':'presentation',
+        'practiceToolSha256':'practice-tool',
+        'activityPackSha256':'activity-pack',
+    }
+    for key, role in pairs.items():
+        if candidate.get(key) != artifacts.get(role):
+            blockers.append('CANDIDATE_ARTIFACT_SHA_MISMATCH:'+key)
+    return blockers
+
+
 def factory_check(state, factory_root: Path):
     blockers = validate_state(state)
     detail = {}
@@ -198,13 +237,27 @@ def factory_check(state, factory_root: Path):
     detail['actualCommitSha'] = actual
     if actual != expected:
         return {'status':'FAIL','blockers':['FACTORY_COMMIT_SHA_MISMATCH'],'detail':detail}
-    tool = factory_root / 'tools' / 'lessonctl' / 'content_design.py'
-    bundle = factory_root / state['factory']['designBundlePath']
-    if not tool.is_file():
-        return {'status':'FAIL','blockers':['FACTORY_CONTENT_DESIGN_TOOL_MISSING'],'detail':detail}
-    if not bundle.is_dir():
-        return {'status':'FAIL','blockers':['FACTORY_DESIGN_BUNDLE_MISSING'],'detail':detail}
-    cp = subprocess.run([sys.executable,str(tool),'check','--path',str(bundle)], text=True, capture_output=True)
+
+    mode=state['factory']['verificationMode']
+    ref_path=factory_root/state['factory']['designRefPath']
+    detail['verificationMode']=mode
+    detail['designRefPath']=state['factory']['designRefPath']
+    if mode=='PUBLIC_BUNDLE':
+        tool=factory_root/'tools'/'lessonctl'/'content_design.py'
+        if not tool.is_file():
+            return {'status':'FAIL','blockers':['FACTORY_CONTENT_DESIGN_TOOL_MISSING'],'detail':detail}
+        if not ref_path.is_dir():
+            return {'status':'FAIL','blockers':['FACTORY_DESIGN_BUNDLE_MISSING'],'detail':detail}
+        cmd=[sys.executable,str(tool),'check','--path',str(ref_path)]
+    else:
+        tool=factory_root/'tools'/'lessonctl'/'design_proof.py'
+        if not tool.is_file():
+            return {'status':'FAIL','blockers':['FACTORY_DESIGN_PROOF_TOOL_MISSING'],'detail':detail}
+        if not ref_path.is_file():
+            return {'status':'FAIL','blockers':['FACTORY_DESIGN_PROOF_MISSING'],'detail':detail}
+        cmd=[sys.executable,str(tool),str(ref_path),'--course',state['courseId']]
+
+    cp = subprocess.run(cmd, text=True, capture_output=True)
     detail['factoryExitCode'] = cp.returncode
     try:
         detail['factoryReport'] = json.loads(cp.stdout) if cp.stdout.strip() else None
@@ -212,7 +265,13 @@ def factory_check(state, factory_root: Path):
         detail['factoryStdout'] = cp.stdout[-4000:]
     if cp.returncode != 0:
         detail['factoryStderr'] = cp.stderr[-4000:]
-        return {'status':'FAIL','blockers':['FACTORY_CONTENT_DESIGN_FAILED'],'detail':detail}
+        return {'status':'FAIL','blockers':['FACTORY_DESIGN_VERIFICATION_FAILED'],'detail':detail}
+
+    if mode=='PRIVATE_PROOF':
+        proof=load_json(ref_path)
+        candidate_blockers=_candidate_proof_blockers(state,proof)
+        if candidate_blockers:
+            return {'status':'FAIL','blockers':candidate_blockers,'detail':detail}
     return {'status':'PASS','blockers':[],'detail':detail}
 
 
