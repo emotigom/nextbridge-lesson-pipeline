@@ -33,7 +33,7 @@ jobs:
           python3 tools/pipelinectl.py validate --state fixtures/pipeline/pass/state.json
           python3 tools/pipelinectl.py check --state fixtures/pipeline/pass/state.json --to ALL_CONTENT_APPROVED
 
-      - name: Resolve pinned Factory binding
+      - name: Resolve pinned Factory SHA
         id: factory
         working-directory: pipeline
         shell: bash
@@ -41,14 +41,14 @@ jobs:
           python3 - <<'PY' >> "$GITHUB_OUTPUT"
           import json
           s=json.load(open('fixtures/pipeline/pass/state.json',encoding='utf-8'))
-          print('repository='+s['factory']['repository'])
+          assert s['factory']['repository']=='emotigom/nextbridge-lesson-factory'
           print('sha='+s['factory']['commitSha'])
           PY
 
-      - name: Checkout exact Factory commit
+      - name: Checkout exact trusted Factory commit
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          repository: ${{ steps.factory.outputs.repository }}
+          repository: emotigom/nextbridge-lesson-factory
           ref: ${{ steps.factory.outputs.sha }}
           path: factory
 

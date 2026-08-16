@@ -86,6 +86,11 @@ class TestPipelineCtl(unittest.TestCase):
         state['factory']['commitSha'] = 'main'
         self.assertIn('FACTORY_COMMIT_NOT_PINNED_SHA', p.validate_state(state))
 
+    def test_factory_repository_is_fixed_trusted_repo(self):
+        state = copy.deepcopy(FIXTURE)
+        state['factory']['repository'] = 'example/attacker-controlled-repo'
+        self.assertIn('FACTORY_REPOSITORY_NOT_ALLOWED', p.validate_state(state))
+
     def test_approved_record_requires_human_metadata(self):
         state = copy.deepcopy(FIXTURE)
         state['approvals']['cleanIntake']['reviewer'] = None
@@ -109,6 +114,9 @@ class TestPipelineCtl(unittest.TestCase):
             report = p.wip_check(root)
             self.assertEqual('FAIL', report['status'])
             self.assertIn('ACTIVE_WIP_COUNT:2', report['blockers'])
+
+    def test_contract_json_is_valid(self):
+        json.loads((ROOT / 'contracts' / 'pipeline-state.schema.json').read_text(encoding='utf-8'))
 
 
 if __name__ == '__main__':

@@ -15,7 +15,7 @@
       "additionalProperties": false,
       "required": ["repository","commitSha","designBundlePath"],
       "properties": {
-        "repository": {"type": "string", "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"},
+        "repository": {"const": "emotigom/nextbridge-lesson-factory"},
         "commitSha": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
         "designBundlePath": {"type": "string", "minLength": 1}
       }

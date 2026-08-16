@@ -9,6 +9,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+FACTORY_REPOSITORY = 'emotigom/nextbridge-lesson-factory'
 SHA40 = re.compile(r'^[0-9a-f]{40}$')
 SESSION_TARGET = re.compile(r'^SESSION_(\d+)_APPROVED$')
 APPROVAL_KEYS = ('cleanIntake','courseMap','allContent','pptxBuild','practiceToolBuild')
@@ -61,8 +62,8 @@ def validate_state(state):
         return blockers
 
     factory = state.get('factory', {})
-    if not re.match(r'^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$', str(factory.get('repository',''))):
-        blockers.append('FACTORY_REPOSITORY_INVALID')
+    if factory.get('repository') != FACTORY_REPOSITORY:
+        blockers.append('FACTORY_REPOSITORY_NOT_ALLOWED')
     if not SHA40.match(str(factory.get('commitSha',''))):
         blockers.append('FACTORY_COMMIT_NOT_PINNED_SHA')
     bundle = str(factory.get('designBundlePath',''))
@@ -192,6 +193,7 @@ def factory_check(state, factory_root: Path):
     except Exception as exc:
         return {'status':'FAIL','blockers':['FACTORY_GIT_HEAD_UNAVAILABLE'],'detail':{'error':str(exc)}}
     expected = state['factory']['commitSha']
+    detail['factoryRepository'] = FACTORY_REPOSITORY
     detail['expectedCommitSha'] = expected
     detail['actualCommitSha'] = actual
     if actual != expected:

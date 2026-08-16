@@ -42,7 +42,7 @@ jobs:
         working-directory: pipeline
         run: python3 tools/pipelinectl.py check --state '${{ inputs.state_file }}' --to '${{ inputs.target }}'
 
-      - name: Resolve Factory binding for complete-content/build gates
+      - name: Resolve trusted Factory SHA for complete-content/build gates
         if: inputs.target == 'ALL_CONTENT_APPROVED' || inputs.target == 'PPTX_BUILD_ALLOWED' || inputs.target == 'PRACTICE_TOOL_BUILD_ALLOWED'
         id: factory
         working-directory: pipeline
@@ -53,15 +53,15 @@ jobs:
           python3 - <<'PY' >> "$GITHUB_OUTPUT"
           import json,os
           s=json.load(open(os.environ['STATE_FILE'],encoding='utf-8'))
-          print('repository='+s['factory']['repository'])
+          assert s['factory']['repository']=='emotigom/nextbridge-lesson-factory'
           print('sha='+s['factory']['commitSha'])
           PY
 
-      - name: Checkout exact Factory commit
+      - name: Checkout exact trusted Factory commit
         if: steps.factory.outputs.sha != ''
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          repository: ${{ steps.factory.outputs.repository }}
+          repository: emotigom/nextbridge-lesson-factory
           ref: ${{ steps.factory.outputs.sha }}
           path: factory
 
