@@ -14,7 +14,7 @@ SHA40 = re.compile(r'^[0-9a-f]{40}$')
 SHA64 = re.compile(r'^[0-9a-f]{64}$')
 SESSION_TARGET = re.compile(r'^SESSION_(\d+)_APPROVED$')
 APPROVAL_KEYS = ('cleanIntake','courseMap','allContent','pptxBuild','practiceToolBuild')
-FACTORY_MODES = {'PUBLIC_BUNDLE','PRIVATE_PROOF'}
+FACTORY_MODES = {'HANDOFF_LINEAGE','PUBLIC_BUNDLE','PRIVATE_PROOF'}
 
 
 class PipelineError(RuntimeError):
@@ -68,7 +68,8 @@ def validate_state(state):
         blockers.append('FACTORY_REPOSITORY_NOT_ALLOWED')
     if not SHA40.match(str(factory.get('commitSha',''))):
         blockers.append('FACTORY_COMMIT_NOT_PINNED_SHA')
-    if factory.get('verificationMode') not in FACTORY_MODES:
+    mode = factory.get('verificationMode')
+    if mode not in FACTORY_MODES:
         blockers.append('FACTORY_VERIFICATION_MODE_INVALID')
     design_ref = str(factory.get('designRefPath',''))
     if not design_ref or Path(design_ref).is_absolute() or '..' in Path(design_ref).parts:
@@ -125,6 +126,12 @@ def validate_state(state):
         blockers.append('PPTX_BUILD_ALLOWED_BEFORE_ALL_CONTENT')
     if practice and not pptx:
         blockers.append('PRACTICE_TOOL_BUILD_ALLOWED_BEFORE_PPTX')
+
+    if mode == 'HANDOFF_LINEAGE':
+        if candidate is not None:
+            blockers.append('HANDOFF_LINEAGE_CANNOT_HAVE_CANDIDATE')
+        if pptx or practice:
+            blockers.append('HANDOFF_LINEAGE_CANNOT_APPROVE_BUILD')
     return sorted(set(blockers))
 
 
@@ -173,8 +180,12 @@ def gate_blockers(state, target):
     if target == 'ALL_CONTENT_APPROVED':
         return [] if _approved(a['allContent']) and all(_approved(x) for x in a['sessions']) else ['ALL_CONTENT_NOT_APPROVED']
     if target == 'PPTX_BUILD_ALLOWED':
+        if state['factory']['verificationMode'] == 'HANDOFF_LINEAGE':
+            return ['MATERIALIZED_DESIGN_REQUIRED_BEFORE_PPTX']
         return [] if _approved(a['pptxBuild']) else ['PPTX_BUILD_NOT_ALLOWED']
     if target == 'PRACTICE_TOOL_BUILD_ALLOWED':
+        if state['factory']['verificationMode'] == 'HANDOFF_LINEAGE':
+            return ['MATERIALIZED_DESIGN_REQUIRED_BEFORE_PRACTICE_TOOL']
         return [] if _approved(a['practiceToolBuild']) else ['PRACTICE_TOOL_BUILD_NOT_ALLOWED']
     return ['UNKNOWN_TARGET']
 
@@ -221,6 +232,30 @@ def _candidate_proof_blockers(state, proof):
     return blockers
 
 
+def _lineage_blockers(state, lineage):
+    blockers=[]
+    if lineage.get('courseId') != state.get('courseId'):
+        blockers.append('HANDOFF_LINEAGE_COURSE_ID_MISMATCH')
+    if lineage.get('factoryCommitSha') != state.get('factory',{}).get('commitSha'):
+        blockers.append('HANDOFF_LINEAGE_FACTORY_SHA_MISMATCH')
+    if lineage.get('privateDetailPublished') is not False:
+        blockers.append('HANDOFF_LINEAGE_PRIVATE_DETAIL_EXPOSED')
+    if not SHA64.match(str(lineage.get('handoffSha256',''))):
+        blockers.append('HANDOFF_LINEAGE_SHA_INVALID')
+    if lineage.get('sessionCount') != state.get('sessionCount'):
+        blockers.append('HANDOFF_LINEAGE_SESSION_COUNT_MISMATCH')
+    approved=[i for i,x in enumerate(state.get('approvals',{}).get('sessions',[]),1) if _approved(x)]
+    if lineage.get('approvedSessions') != approved:
+        blockers.append('HANDOFF_LINEAGE_APPROVED_SESSIONS_MISMATCH')
+    try:
+        milestone=derived_milestone(state)
+    except PipelineError:
+        milestone=None
+    if lineage.get('designState') != milestone:
+        blockers.append('HANDOFF_LINEAGE_DESIGN_STATE_MISMATCH')
+    return blockers
+
+
 def factory_check(state, factory_root: Path):
     blockers = validate_state(state)
     detail = {}
@@ -239,9 +274,21 @@ def factory_check(state, factory_root: Path):
         return {'status':'FAIL','blockers':['FACTORY_COMMIT_SHA_MISMATCH'],'detail':detail}
 
     mode=state['factory']['verificationMode']
-    ref_path=factory_root/state['factory']['designRefPath']
     detail['verificationMode']=mode
     detail['designRefPath']=state['factory']['designRefPath']
+
+    if mode == 'HANDOFF_LINEAGE':
+        ref_path=ROOT/state['factory']['designRefPath']
+        if not ref_path.is_file():
+            return {'status':'FAIL','blockers':['HANDOFF_LINEAGE_MISSING'],'detail':detail}
+        lineage=load_json(ref_path)
+        lineage_blockers=_lineage_blockers(state,lineage)
+        if lineage_blockers:
+            return {'status':'FAIL','blockers':lineage_blockers,'detail':detail}
+        detail['handoffLineage']=lineage
+        return {'status':'PASS','blockers':[],'detail':detail}
+
+    ref_path=factory_root/state['factory']['designRefPath']
     if mode=='PUBLIC_BUNDLE':
         tool=factory_root/'tools'/'lessonctl'/'content_design.py'
         if not tool.is_file():
