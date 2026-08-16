@@ -25,22 +25,30 @@ jobs:
         with:
           path: pipeline
 
-      - name: Guard state path
+      - name: Guard dispatch inputs
         working-directory: pipeline
         env:
           STATE_FILE: ${{ inputs.state_file }}
+          TARGET: ${{ inputs.target }}
         run: |
           python3 - <<'PY'
           import os,re,sys
-          p=os.environ['STATE_FILE']
-          if not re.fullmatch(r'courses/[a-z0-9][a-z0-9-]{2,63}/state\.json',p):
+          state=os.environ['STATE_FILE']
+          target=os.environ['TARGET']
+          if not re.fullmatch(r'courses/[a-z0-9][a-z0-9-]{2,63}/state\.json',state):
               print('state_file must be courses/<courseId>/state.json',file=sys.stderr)
+              raise SystemExit(2)
+          if not re.fullmatch(r'(CLEAN_INTAKE|COURSE_MAP_APPROVED|SESSION_[1-9][0-9]*_APPROVED|ALL_CONTENT_APPROVED|PPTX_BUILD_ALLOWED|PRACTICE_TOOL_BUILD_ALLOWED)',target):
+              print('unsupported target milestone',file=sys.stderr)
               raise SystemExit(2)
           PY
 
       - name: Check sequential approval target
         working-directory: pipeline
-        run: python3 tools/pipelinectl.py check --state '${{ inputs.state_file }}' --to '${{ inputs.target }}'
+        env:
+          STATE_FILE: ${{ inputs.state_file }}
+          TARGET: ${{ inputs.target }}
+        run: python3 tools/pipelinectl.py check --state "$STATE_FILE" --to "$TARGET"
 
       - name: Resolve trusted Factory SHA for complete-content/build gates
         if: inputs.target == 'ALL_CONTENT_APPROVED' || inputs.target == 'PPTX_BUILD_ALLOWED' || inputs.target == 'PRACTICE_TOOL_BUILD_ALLOWED'
@@ -68,4 +76,6 @@ jobs:
       - name: Verify Factory design bundle before artifact build
         if: steps.factory.outputs.sha != ''
         working-directory: pipeline
-        run: python3 tools/pipelinectl.py factory-check --state '${{ inputs.state_file }}' --factory-root ../factory
+        env:
+          STATE_FILE: ${{ inputs.state_file }}
+        run: python3 tools/pipelinectl.py factory-check --state "$STATE_FILE" --factory-root ../factory
