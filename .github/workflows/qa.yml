@@ -79,6 +79,48 @@ jobs:
           assert 'studentText' not in text and 'teacherScript' not in text
           PY
 
+      - name: Smoke one-command new lesson workspace
+        working-directory: pipeline
+        run: |
+          rm -rf /tmp/nextbridge-new-lesson-smoke
+          python3 tools/new_lesson.py \
+            --course-id smoke-course \
+            --title 'Smoke lesson' \
+            --sessions 3 \
+            --workspace /tmp/nextbridge-new-lesson-smoke \
+            --factory-commit '${{ steps.factory.outputs.sha }}'
+          python3 tools/pipelinectl.py validate --state /tmp/nextbridge-new-lesson-smoke/pipeline-state.draft.json
+          python3 tools/pipelinectl.py status --state /tmp/nextbridge-new-lesson-smoke/pipeline-state.draft.json | tee /tmp/new-lesson-status.json
+          python3 - <<'PY'
+          import json
+          r=json.load(open('/tmp/new-lesson-status.json',encoding='utf-8'))
+          assert r['milestone']=='CLEAN_INTAKE'
+          PY
+
+      - name: Smoke handoff to Pipeline draft sync
+        working-directory: pipeline
+        run: |
+          rm -rf /tmp/nextbridge-handoff-sync
+          python3 tools/handoff_sync.py \
+            --handoff ../factory/fixtures/handoff/chatgpt-pass/handoff.json \
+            --factory-root ../factory \
+            --factory-commit '${{ steps.factory.outputs.sha }}' \
+            --captured-at synthetic-ci \
+            --out-dir /tmp/nextbridge-handoff-sync
+          python3 tools/pipelinectl.py validate --state /tmp/nextbridge-handoff-sync/courses/synthetic-course/state.json
+          python3 tools/pipelinectl.py status --state /tmp/nextbridge-handoff-sync/courses/synthetic-course/state.json | tee /tmp/handoff-sync-status.json
+          python3 - <<'PY'
+          import json
+          r=json.load(open('/tmp/handoff-sync-status.json',encoding='utf-8'))
+          assert r['milestone']=='ALL_CONTENT_APPROVED'
+          s=json.load(open('/tmp/nextbridge-handoff-sync/courses/synthetic-course/state.json',encoding='utf-8'))
+          assert s['factory']['verificationMode']=='HANDOFF_LINEAGE'
+          assert s['approvals']['pptxBuild']['status']=='PENDING'
+          assert s['approvals']['practiceToolBuild']['status']=='PENDING'
+          text=open('/tmp/nextbridge-handoff-sync/handoffs/synthetic-course.json',encoding='utf-8').read()
+          assert 'studentText' not in text and 'teacherScript' not in text
+          PY
+
       - name: Verify synthetic public bundle at pinned SHA
         working-directory: pipeline
         run: python3 tools/pipelinectl.py factory-check --state fixtures/pipeline/pass/state.json --factory-root ../factory
