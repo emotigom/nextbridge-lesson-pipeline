@@ -1,0 +1,71 @@
+name: Design Promotion Gate
+
+on:
+  workflow_dispatch:
+    inputs:
+      state_file:
+        description: courses/<courseId>/state.json
+        required: true
+        type: string
+      target:
+        description: Target milestone, e.g. SESSION_1_APPROVED or PPTX_BUILD_ALLOWED
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout pipeline
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: pipeline
+
+      - name: Guard state path
+        working-directory: pipeline
+        env:
+          STATE_FILE: ${{ inputs.state_file }}
+        run: |
+          python3 - <<'PY'
+          import os,re,sys
+          p=os.environ['STATE_FILE']
+          if not re.fullmatch(r'courses/[a-z0-9][a-z0-9-]{2,63}/state\.json',p):
+              print('state_file must be courses/<courseId>/state.json',file=sys.stderr)
+              raise SystemExit(2)
+          PY
+
+      - name: Check sequential approval target
+        working-directory: pipeline
+        run: python3 tools/pipelinectl.py check --state '${{ inputs.state_file }}' --to '${{ inputs.target }}'
+
+      - name: Resolve Factory binding for complete-content/build gates
+        if: inputs.target == 'ALL_CONTENT_APPROVED' || inputs.target == 'PPTX_BUILD_ALLOWED' || inputs.target == 'PRACTICE_TOOL_BUILD_ALLOWED'
+        id: factory
+        working-directory: pipeline
+        env:
+          STATE_FILE: ${{ inputs.state_file }}
+        shell: bash
+        run: |
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import json,os
+          s=json.load(open(os.environ['STATE_FILE'],encoding='utf-8'))
+          print('repository='+s['factory']['repository'])
+          print('sha='+s['factory']['commitSha'])
+          PY
+
+      - name: Checkout exact Factory commit
+        if: steps.factory.outputs.sha != ''
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ steps.factory.outputs.repository }}
+          ref: ${{ steps.factory.outputs.sha }}
+          path: factory
+
+      - name: Verify Factory design bundle before artifact build
+        if: steps.factory.outputs.sha != ''
+        working-directory: pipeline
+        run: python3 tools/pipelinectl.py factory-check --state '${{ inputs.state_file }}' --factory-root ../factory
