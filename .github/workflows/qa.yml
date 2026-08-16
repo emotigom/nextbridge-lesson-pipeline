@@ -60,6 +60,25 @@ jobs:
           ref: ${{ steps.factory.outputs.sha }}
           path: factory
 
+      - name: Verify ChatGPT handoff to public-safe lineage
+        working-directory: pipeline
+        run: |
+          mkdir -p out
+          python3 tools/handoff_lineage.py \
+            --handoff ../factory/fixtures/handoff/chatgpt-pass/handoff.json \
+            --factory-root ../factory \
+            --factory-commit '${{ steps.factory.outputs.sha }}' \
+            --captured-at synthetic-ci \
+            --out out/handoff-lineage.json
+          python3 - <<'PY'
+          import json
+          r=json.load(open('out/handoff-lineage.json',encoding='utf-8'))
+          assert r['designState']=='ALL_CONTENT_APPROVED'
+          assert r['approvedSessions']==[1]
+          text=open('out/handoff-lineage.json',encoding='utf-8').read()
+          assert 'studentText' not in text and 'teacherScript' not in text
+          PY
+
       - name: Verify synthetic public bundle at pinned SHA
         working-directory: pipeline
         run: python3 tools/pipelinectl.py factory-check --state fixtures/pipeline/pass/state.json --factory-root ../factory

@@ -5,7 +5,7 @@
   "sessionCount": 4,
   "factory": {
     "repository": "emotigom/nextbridge-lesson-factory",
-    "commitSha": "79fa84068011035f7546a0f46090715eb278a6d4",
+    "commitSha": "5402f691d2c9d127b05d2063682be266645ee273",
     "verificationMode": "PRIVATE_PROOF",
     "designRefPath": "courses/feed-why/design/cleanroom-v1/design-proof.json"
   },

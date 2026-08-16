@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nextbridge.example/contracts/handoff-lineage.schema.json",
+  "title": "Nextbridge ChatGPT Handoff Lineage",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion","courseId","handoffSha256","designState","sessionCount","approvedSessions","factoryCommitSha","privateDetailPublished"],
+  "properties": {
+    "schemaVersion": {"const": "1.0.0"},
+    "courseId": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]{2,63}$"},
+    "handoffSha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "designState": {"type": "string", "pattern": "^(COURSE_MAP_APPROVED|SESSION_[1-9][0-9]*_APPROVED|ALL_CONTENT_APPROVED)$"},
+    "sessionCount": {"type": "integer", "minimum": 1, "maximum": 20},
+    "approvedSessions": {"type": "array", "items": {"type": "integer", "minimum": 1}},
+    "factoryCommitSha": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "privateDetailPublished": {"const": false},
+    "capturedAt": {"type": ["string", "null"]}
+  }
+}
